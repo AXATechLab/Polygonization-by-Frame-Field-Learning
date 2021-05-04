@@ -38,7 +38,7 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
     
     backbone = UNetResNetBackbone(101)
     model = FrameFieldModel(config, backbone)
-    model.load_state_dict(torch.load(model_weight_path))
+    model.load_state_dict(torch.load(model_weight_path, map_location=torch.device('cpu')))
     top_left = bounding_box[0]
     bottom_right = bounding_box[1]
     
