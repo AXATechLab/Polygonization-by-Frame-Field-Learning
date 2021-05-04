@@ -84,7 +84,8 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
             
     model.eval()
     img = process_image(big_image)
-    big_pred = model(img.unsqueeze(0))
+    img = {'image': img.unsqueeze(0)}
+    big_pred = model(img)[0]
     
     eps = 0.025
     relative_pos_tl = [max((northernmost - top_left[0]) / (northernmost - southernmost) - eps, 0), \
