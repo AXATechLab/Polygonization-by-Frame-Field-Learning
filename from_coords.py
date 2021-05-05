@@ -14,7 +14,7 @@ from frame_field_learning.model import FrameFieldModel
 from frame_field_learning.polygonize import *
 from frame_field_learning.unet_resnet import *
 
-def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_key, parcel_polygon=None, building_size_min=30.0, fire_dist=5.0):
+def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_key, parcel_polygon=None, building_size_min=30.0, fire_dist=5.0, cpu=True):
     """
        Inpout :
        model_weight_path (string) : Contains the path towards the file containing the weights of the segmentation NN
@@ -35,6 +35,9 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
     with open(config_path) as f:
         config = json.load(f)
     polygonizer = Polygonizer(config['polygonize_params'])
+    if cpu:
+        config['device'] = 'cpu'
+        config['polygonize_params']['acm_method']['device'] = 'cpu'
     
     backbone = UNetResNetBackbone(101)
     model = FrameFieldModel(config, backbone)
@@ -86,6 +89,7 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
     img = process_image(big_image)
     img = {'image': img.unsqueeze(0)}
     big_pred = model(img)[0]
+    print(big_pred.device)
     
     eps = 0.025
     relative_pos_tl = [max((northernmost - top_left[0]) / (northernmost - southernmost) - eps, 0), \
@@ -112,7 +116,6 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
             parcel_polygon_xy.append(xy_coord)
         parcel_polygon_xy.append(parcel_polygon_xy[0])
 
-    
     big_contours = polygonizer(config['polygonize_params'], big_pred['seg'].detach(), big_pred['crossfield'].detach())
     big_contours = big_contours[0][0]['acm']['tol_0.125']
         
