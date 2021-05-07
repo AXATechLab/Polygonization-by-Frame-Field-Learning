@@ -4,12 +4,15 @@ import io
 import cv2
 import json
 import scipy
+import timeit
+import geojson
 import requests
 import mercantile
 import numpy as np
+from PIL import Image
 from shapely import geometry
 import matplotlib.pyplot as plt
-from PIL import Image
+from joblib import Parallel, delayed
 from frame_field_learning.model import FrameFieldModel
 from frame_field_learning.polygonize import *
 from frame_field_learning.unet_resnet import *
@@ -38,6 +41,7 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
     if cpu:
         config['device'] = 'cpu'
         config['polygonize_params']['acm_method']['device'] = 'cpu'
+    config['polygonize_params']['method'] = 'acm'
     
     backbone = UNetResNetBackbone(101)
     model = FrameFieldModel(config, backbone)
@@ -88,8 +92,8 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
     model.eval()
     img = process_image(big_image)
     img = {'image': img.unsqueeze(0)}
+    starttime = timeit.default_timer()
     big_pred = model(img)[0]
-    print(big_pred.device)
     
     eps = 0.025
     relative_pos_tl = [max((northernmost - top_left[0]) / (northernmost - southernmost) - eps, 0), \
@@ -116,8 +120,9 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
             parcel_polygon_xy.append(xy_coord)
         parcel_polygon_xy.append(parcel_polygon_xy[0])
 
+    starttime = timeit.default_timer()
     big_contours = polygonizer(config['polygonize_params'], big_pred['seg'].detach(), big_pred['crossfield'].detach())
-    big_contours = big_contours[0][0]['acm']['tol_0.125']
+    big_contours = big_contours[0][0]['tol_0.125']
         
     buildings = []
     for contour in big_contours:
@@ -132,10 +137,10 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
                 keep = False
                 break
             else:
-                contour_xy.append((coord[0] - pos_tl[1], coord[1] - pos_tl[0]))
+                contour_xy.append([int(coord[0] - pos_tl[1]), int(coord[1] - pos_tl[0])])
                 long = westernmost + coord[0] * (easternmost - westernmost) / big_image.shape[0]
                 lat = northernmost - coord[1] * (northernmost - southernmost) / big_image.shape[1]
-                contour_lat_long.append((lat, long))
+                contour_lat_long.append([lat, long])
         if keep:
             contour_xy.append(contour_xy[0])
             contour_lat_long.append(contour_lat_long[0])
@@ -175,11 +180,18 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
     nb_comp, comps = scipy.sparse.csgraph.connected_components(adjacency)
     
     for i, comp in enumerate(comps):
-        buildings[i]['comp'] = comp
+        buildings[i]['comp'] = int(comp)
         
     image_bytes = io.BytesIO()
     np.save(image_bytes, image, allow_pickle=True)
     image = image_bytes.getvalue()
+    
+    for building in buildings:
+        building['xy'] = dict(geometry.mapping(geometry.Polygon(building['xy'])))
+        building['lat_long'] = dict(geometry.mapping(geometry.Polygon(building['lat_long'])))
+        
+    buildings = geojson.dumps(buildings)
+    buildings = geojson.loads(buildings)
     
     return image, buildings, dists, nb_comp, parcel_polygon_xy
 
