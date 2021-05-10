@@ -182,9 +182,7 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
     for i, comp in enumerate(comps):
         buildings[i]['comp'] = int(comp)
         
-    image_bytes = io.BytesIO()
-    np.save(image_bytes, image, allow_pickle=True)
-    image = image_bytes.getvalue()
+    image = image.tobytes()
     
     for building in buildings:
         building['xy'] = dict(geometry.mapping(geometry.Polygon(building['xy'])))
