@@ -92,8 +92,8 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
     model.eval()
     img = process_image(big_image)
     img = {'image': img.unsqueeze(0)}
-    starttime = timeit.default_timer()
-    big_pred = model(img)[0]
+    with torch.no_grad():
+        big_pred = model(img)[0]
     
     eps = 0.025
     relative_pos_tl = [max((northernmost - top_left[0]) / (northernmost - southernmost) - eps, 0), \
@@ -182,7 +182,8 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
     for i, comp in enumerate(comps):
         buildings[i]['comp'] = int(comp)
         
-    image = image.tobytes()
+    success, encoded_image = cv2.imencode('.png', image)
+    image = encoded_image.tobytes()
     
     for building in buildings:
         building['xy'] = dict(geometry.mapping(geometry.Polygon(building['xy'])))
