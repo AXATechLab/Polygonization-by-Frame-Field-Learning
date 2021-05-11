@@ -17,7 +17,7 @@ from frame_field_learning.model import FrameFieldModel
 from frame_field_learning.polygonize import *
 from frame_field_learning.unet_resnet import *
 
-def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_key, parcel_polygon=None, building_size_min=30.0, fire_dist=5.0, cpu=True):
+def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_key, parcel_polygon=None, cpu=True, building_size_min=30.0, fire_dist=5.0):
     """
        Inpout :
        model_weight_path (string) : Contains the path towards the file containing the weights of the segmentation NN
@@ -45,7 +45,10 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
     
     backbone = UNetResNetBackbone(101)
     model = FrameFieldModel(config, backbone)
-    model.load_state_dict(torch.load(model_weight_path, map_location=torch.device('cpu')))
+    if cpu:
+        model.load_state_dict(torch.load(model_weight_path, map_location=torch.device('cpu')))
+    else:
+        model.load_state_dict(torch.load(model_weight_path))
     top_left = bounding_box[0]
     bottom_right = bounding_box[1]
     
