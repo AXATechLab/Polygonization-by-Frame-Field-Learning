@@ -49,6 +49,7 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
         model.load_state_dict(torch.load(model_weight_path, map_location=torch.device('cpu')))
     else:
         model.load_state_dict(torch.load(model_weight_path))
+        model.cuda()
     top_left = bounding_box[0]
     bottom_right = bounding_box[1]
     
@@ -93,7 +94,7 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
             big_image[j*512:(j+1)*512, i*512:(i+1)*512, :] = temp_im
             
     model.eval()
-    img = process_image(big_image)
+    img = process_image(big_image, cpu)
     img = {'image': img.unsqueeze(0)}
     with torch.no_grad():
         big_pred = model(img)[0]
@@ -197,9 +198,12 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
     
     return image, buildings, dists, nb_comp, parcel_polygon_xy
 
-def process_image(im):
+def process_image(im, cpu):
     
-    X = torch.tensor((im*255).copy()).permute(2, 0, 1).float()
+    if cpu:
+        X = torch.tensor((im*255).copy(), device=torch.device('cpu')).permute(2, 0, 1).float()
+    else:
+        X = torch.tensor((im*255).copy(), device=torch.device('cuda:0')).permute(2, 0, 1).float()
     X[0,:,:] = (X[0,:,:] - X[0,:,:].mean()) / X[0,:,:].std()
     X[1,:,:] = (X[1,:,:] - X[1,:,:].mean()) / X[1,:,:].std()
     X[2,:,:] = (X[2,:,:] - X[2,:,:].mean()) / X[2,:,:].std()
