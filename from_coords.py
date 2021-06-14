@@ -142,8 +142,8 @@ def segment_buildings(config_path, model_weight_path, bounding_box, mapbox_api_k
                 break
             else:
                 contour_xy.append([int(coord[0] - pos_tl[1]), int(coord[1] - pos_tl[0])])
-                long = westernmost + coord[0] * (easternmost - westernmost) / big_image.shape[0]
-                lat = northernmost - coord[1] * (northernmost - southernmost) / big_image.shape[1]
+                long = westernmost + coord[0] * (easternmost - westernmost) / big_image.shape[1]
+                lat = northernmost - coord[1] * (northernmost - southernmost) / big_image.shape[0]
                 contour_lat_long.append([lat, long])
         if keep:
             contour_xy.append(contour_xy[0])
